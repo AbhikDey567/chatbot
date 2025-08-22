@@ -1,44 +1,64 @@
 import React, { useState } from "react";
 import "./App.css";
 
-// Rules with keywords and optional context keywords
+// Travel booking rules
 const rules = [
-  { keywords: ["hello", "hi"], response: "Hello! How can I help you today?" },
-  { keywords: ["how are you"], response: "I'm a bot, but I'm doing great! 😊" },
-  { keywords: ["bye", "goodbye"], response: "Goodbye! Have a nice day!" },
-  { keywords: ["help"], response: "Sure! Ask me anything and I'll try to answer." },
-  { keywords: ["vite"], response: "Ah! You like Vite projects, right? It's super fast for React!" },
-  { keywords: ["project", "react"], response: "React + Vite is perfect for fast web development!" },
+  { keywords: ["hello", "hi"], response: "Hello! 👋 Welcome to TravelBot. Are you looking to book a ticket?" },
+  { keywords: ["book", "ticket", "reserve"], response: "Great! ✈️ Please tell me your destination." },
+  { keywords: ["train", "bus", "flight"], response: "We offer booking for trains, buses, and flights. Which one would you like?" },
+  { keywords: ["price", "fare", "cost"], response: "Ticket prices depend on your destination, date, and travel mode. Can you share those details?" },
+  { keywords: ["help"], response: "I can help you with ticket booking, fare details, and travel options. Just tell me your destination!" },
+  { keywords: ["cancel", "refund"], response: "To cancel a ticket, please provide your booking ID and I’ll guide you through the process." },
+  { keywords: ["bye", "goodbye"], response: "Goodbye! 👋 Safe travels and hope to see you again." }
 ];
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [context, setContext] = useState([]);
+  
+  // Context memory: stores transport, destination, date
+  const [context, setContext] = useState({ transport: "", destination: "", date: "" });
 
   const handleSend = () => {
     if (!input.trim()) return;
 
     const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
-    setContext((prev) => [...prev, input].slice(-3)); // remember last 3 messages
 
-    // Multi-keyword matching
-    const matchedRules = rules.filter((r) =>
-      r.keywords.some((k) => input.toLowerCase().includes(k))
-    );
+    let botText = "Sorry, I didn't understand that. Please try again.";
 
-    let botText = "Sorry, I don't understand that.";
-    if (matchedRules.length === 1) {
-      botText = matchedRules[0].response;
-    } else if (matchedRules.length > 1) {
-      // Pick rule with most keywords matched
-      const scored = matchedRules.map((r) => ({
-        rule: r,
-        score: r.keywords.filter((k) => input.toLowerCase().includes(k)).length,
-      }));
-      scored.sort((a, b) => b.score - a.score);
-      botText = scored[0].rule.response;
+    // 1️⃣ Check transport
+    if (["train", "bus", "flight"].some((t) => input.toLowerCase().includes(t))) {
+      const transport = ["train", "bus", "flight"].find((t) => input.toLowerCase().includes(t));
+      setContext((prev) => ({ ...prev, transport }));
+      botText = `Great! You chose ${transport}. Please tell me your destination.`;
+    }
+    // 2️⃣ Check destination
+    else if (context.transport && !context.destination) {
+      setContext((prev) => ({ ...prev, destination: input }));
+      botText = `Got it! Your destination is ${input}. Please enter your travel date (e.g., 2025-09-01).`;
+    }
+    // 3️⃣ Check date
+    else if (context.transport && context.destination && !context.date) {
+      setContext((prev) => ({ ...prev, date: input }));
+      botText = `Perfect! Your travel date is ${input}. Do you want to confirm your booking? (yes/no)`;
+    }
+    // 4️⃣ Confirm booking
+    else if (input.toLowerCase().includes("yes") && context.transport && context.destination && context.date) {
+      botText = `🎉 Your ${context.transport} ticket to ${context.destination} on ${context.date} has been booked successfully!`;
+      setContext({ transport: "", destination: "", date: "" }); // reset context after booking
+    }
+    // 5️⃣ Cancel or goodbye
+    else if (input.toLowerCase().includes("no")) {
+      botText = "Booking cancelled. You can start over if you like.";
+      setContext({ transport: "", destination: "", date: "" }); // reset context
+    }
+    // 6️⃣ Fallback: rule-based matching
+    else {
+      const matchedRule = rules.find((r) =>
+        r.keywords.some((k) => input.toLowerCase().includes(k))
+      );
+      if (matchedRule) botText = matchedRule.response;
     }
 
     const botMessage = { sender: "bot", text: botText };
@@ -52,7 +72,7 @@ function App() {
 
   return (
     <div className="chat-container">
-      <h1>Smart Rule-Based Chatbot 🤖</h1>
+      <h1>TravelBot 🎫</h1>
       <div className="chat-box">
         {messages.map((msg, idx) => (
           <div key={idx} className={`message ${msg.sender}`}>
